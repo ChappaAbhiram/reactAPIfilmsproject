@@ -1,38 +1,65 @@
-import React,{useState} from 'react';
-
+import React, { useState, useEffect } from 'react';
 import MoviesList from './components/MoviesList';
 import './App.css';
 
 function App() {
-  // const dummyMovies = [
-  //   {
-  //     id: 1,
-  //     title: 'Some Dummy Movie',
-  //     openingText: 'This is the opening text of the movie',
-  //     releaseDate: '2021-05-18',
-  //   },
-  //   {
-  //     id: 2,
-  //     title: 'Some Dummy Movie 2',
-  //     openingText: 'This is the second opening text of the movie',
-  //     releaseDate: '2021-05-19',
-  //   },
-  // ];
-  const [movies,setMovies] =  useState([]);
-  const [isLoading,setIsLoading] = useState(false);
-  async function fetchMoviesHandler(){
+  const [movies, setMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retrying, setRetrying] = useState(false); // Track retrying state
+
+  useEffect(() => {
+    if (retrying) {
+      const retryTimer = setInterval(fetchMoviesHandler, 5000); // Retry every 5 seconds
+
+      return () => {
+        clearInterval(retryTimer); // Clear the interval when retrying is stopped
+      };
+    }
+  }, [retrying]);
+
+  async function fetchMoviesHandler() {
     setIsLoading(true);
-    const response = await fetch('https://swapi.dev/api/films/')
-    const data = await response.json();
-      const tranformedMovies = data.results.map(movie=>{
-        return {id : movie.episode_id,
-        title : movie.title,
-        openingText : movie.opening_crawl,
-       releaseDate : movie.release_date};
-      })
-      // setMovies(data.results);
-      setMovies(tranformedMovies);
+    setError(null);
+
+    try {
+      const response = await fetch('https://swapi.dev/api/films/');
+      if (!response.ok) {
+        throw new Error('Something went wrong ....Retrying');
+      }
+      const data = await response.json();
+      const transformedMovies = data.results.map((movie) => ({
+        id: movie.episode_id,
+        title: movie.title,
+        openingText: movie.opening_crawl,
+        releaseDate: movie.release_date,
+      }));
+      setMovies(transformedMovies);
+    } catch (error) {
+      setError(error.message);
+      setRetrying(true); // Enable retrying when an error occurs
+    }
       setIsLoading(false);
+  }
+
+  function handleCancelRetry() {
+    setRetrying(false); // Stop retrying
+  }
+
+  let content = <p>Found No Movies</p>;
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
+  if (error) {
+    content = (
+      <div>
+        <p>{error}</p>
+        {retrying && <button onClick={handleCancelRetry}>Cancel Retry</button>}
+      </div>
+    );
+  }
+  if (isLoading) {
+    content = <p>Loading</p>;
   }
 
   return (
@@ -40,11 +67,7 @@ function App() {
       <section>
         <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
-      <section>
-        {!isLoading && movies.length>0 && <MoviesList movies={movies} />}
-        {!isLoading && movies.length===0 && <p> Found No movies at present</p>}
-        {isLoading && <p>Loading...</p>}
-      </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
