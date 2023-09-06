@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MoviesList from './components/MoviesList';
 import './App.css';
 
@@ -18,7 +18,7 @@ function App() {
     }
   }, [retrying]);
 
-  async function fetchMoviesHandler() {
+  const  fetchMoviesHandler=useCallback(async ()=>{
     setIsLoading(true);
     setError(null);
 
@@ -28,19 +28,24 @@ function App() {
         throw new Error('Something went wrong ....Retrying');
       }
       const data = await response.json();
-      const transformedMovies = data.results.map((movie) => ({
+      const transformedMovies = data.results.map((movie) => {
+        return{
         id: movie.episode_id,
         title: movie.title,
         openingText: movie.opening_crawl,
         releaseDate: movie.release_date,
-      }));
+      };
+    });
       setMovies(transformedMovies);
     } catch (error) {
       setError(error.message);
       setRetrying(true); // Enable retrying when an error occurs
     }
       setIsLoading(false);
-  }
+  },[])
+  useEffect(()=>{
+    fetchMoviesHandler();
+  },[fetchMoviesHandler]);
 
   function handleCancelRetry() {
     setRetrying(false); // Stop retrying
@@ -59,7 +64,7 @@ function App() {
     );
   }
   if (isLoading) {
-    content = <p>Loading</p>;
+    content = <p>Loading...</p>;
   }
 
   return (
