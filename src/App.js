@@ -24,20 +24,29 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch('https://swapi.dev/api/films/');
+      const response = await fetch('https://react-http-b7373-default-rtdb.firebaseio.com/movies.json');
       if (!response.ok) {
         throw new Error('Something went wrong ....Retrying');
       }
       const data = await response.json();
-      const transformedMovies = data.results.map((movie) => {
-        return{
-        id: movie.episode_id,
-        title: movie.title,
-        openingText: movie.opening_crawl,
-        releaseDate: movie.release_date,
-      };
-    });
-      setMovies(transformedMovies);
+      const storedmovies = [];
+      for(const key in data){
+        storedmovies.push({
+          id : key,
+          title : data[key].title,
+          openingText : data[key].openingText,
+          releaseDate : data[key].releaseDate,
+        })
+      }
+    //   const transformedMovies = data.map((movie) => {
+    //     return{
+    //     id: movie.episode_id,
+    //     title: movie.title,
+    //     openingText: movie.opening_crawl,
+    //     releaseDate: movie.release_date,
+    //   };
+    // });
+      setMovies(storedmovies);
     } catch (error) {
       setError(error.message);
       setRetrying(true); // Enable retrying when an error occurs
@@ -48,8 +57,34 @@ function App() {
     fetchMoviesHandler();
   },[fetchMoviesHandler]);
 
-  function addMovieHandler(movie) {
-    console.log(movie);
+  async function addMovieHandler(movie) {
+    const response = await fetch('https://react-http-b7373-default-rtdb.firebaseio.com/movies.json',{
+      method : 'POST',
+      body : JSON.stringify(movie),
+      headers : {
+        'Content-Type' : 'application/json'
+      }
+    });
+    const data = await response.json();
+    console.log(data);
+    setMovies((prevMovies) => [...prevMovies, { ...movie, id: data.name }]);
+    setRetrying(false);
+  }
+  async function deleteMovieHandler(movieId) {
+    try {
+      const response = await fetch(`https://react-http-b7373-default-rtdb.firebaseio.com/movies/${movieId}.json`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete movie');
+      }
+
+      // Update the movie list by filtering out the deleted movie
+      setMovies((prevMovies) => prevMovies.filter((movie) => movie.id !== movieId));
+    } catch (error) {
+      console.error(error);
+    }
   }
 
 
@@ -59,7 +94,7 @@ function App() {
 
   let content = <p>Found No Movies</p>;
   if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
+    content = <MoviesList movies={movies}  onDeleteMovie={deleteMovieHandler}/>;
   }
   if (error) {
     content = (
